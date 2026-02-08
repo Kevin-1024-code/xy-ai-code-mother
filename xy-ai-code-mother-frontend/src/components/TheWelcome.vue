@@ -6,6 +6,14 @@ import EcosystemIcon from './icons/IconEcosystem.vue'
 import CommunityIcon from './icons/IconCommunity.vue'
 import SupportIcon from './icons/IconSupport.vue'
 
+import { onMounted } from 'vue'
+import { healthCheck } from '@/api/healthController.ts'
+onMounted(() => {
+  healthCheck().then((res) => {
+    console.log(res)
+  })
+})
+
 const openReadmeInEditor = () => fetch('/__open-in-editor?file=README.md')
 </script>
 
