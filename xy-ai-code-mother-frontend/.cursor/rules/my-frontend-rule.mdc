@@ -1,0 +1,5 @@
+---
+description: generate frontend vue code
+alwaysApply: false
+---
+生成前端Vue代码时,使用Vue3的组合式API语法
