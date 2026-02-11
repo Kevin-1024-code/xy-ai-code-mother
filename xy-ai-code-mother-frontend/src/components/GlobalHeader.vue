@@ -1,144 +1,168 @@
+<template>
+  <a-layout-header class="header">
+    <a-row :wrap="false">
+      <!-- 左侧：Logo和标题 -->
+      <a-col flex="200px">
+        <RouterLink to="/">
+          <div class="header-left">
+            <h1 class="site-title">咸鱼应用生成</h1>
+          </div>
+        </RouterLink>
+      </a-col>
+      <!-- 中间：导航菜单 -->
+      <a-col flex="auto">
+        <a-menu
+          v-model:selectedKeys="selectedKeys"
+          mode="horizontal"
+          :items="menuItems"
+          @click="handleMenuClick"
+        />
+      </a-col>
+      <!-- 右侧：用户操作区域 -->
+      <a-col>
+        <div class="user-login-status">
+          <div v-if="loginUserStore.loginUser.id">
+            <a-dropdown>
+              <a-space>
+                <a-avatar :src="loginUserStore.loginUser.userAvatar" />
+                {{ loginUserStore.loginUser.userName ?? '无名' }}
+              </a-space>
+              <template #overlay>
+                <a-menu>
+                  <a-menu-item @click="doLogout">
+                    <LogoutOutlined />
+                    退出登录
+                  </a-menu-item>
+                </a-menu>
+              </template>
+            </a-dropdown>
+          </div>
+          <div v-else>
+            <a-button type="primary" href="/user/login">登录</a-button>
+          </div>
+        </div>
+      </a-col>
+    </a-row>
+  </a-layout-header>
+</template>
+
 <script setup lang="ts">
-import { useRouter, useRoute } from 'vue-router'
-import { computed } from 'vue'
+import { computed, h, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { type MenuProps, message } from 'ant-design-vue'
+import { useLoginUserStore } from '@/stores/loginUser.ts'
+import { userLogout } from '@/api/userController.ts'
+import { LogoutOutlined, HomeOutlined } from '@ant-design/icons-vue'
+import checkAccess from '@/access/checkAccess.ts'
 
-export interface MenuItem {
-  key: string
-  path: string
-  label: string
-}
-
-const props = withDefaults(
-  defineProps<{
-    title?: string
-    menuItems?: MenuItem[]
-  }>(),
-  {
-    title: 'AI零代码应用生成',
-    menuItems: () => [
-      { key: 'home', path: '/', label: '首页' },
-      { key: 'about', path: '/about', label: '关于' },
-    ],
-  }
-)
-
+const loginUserStore = useLoginUserStore()
 const router = useRouter()
-const route = useRoute()
-
-const selectedKeys = computed(() => {
-  const path = route.path
-  const item = props.menuItems.find((m) => m.path === path || (m.path !== '/' && path.startsWith(m.path)))
-  return item ? [item.key] : []
+// 当前选中菜单
+const selectedKeys = ref<string[]>(['/'])
+// 监听路由变化，更新当前选中菜单
+router.afterEach((to, from, next) => {
+  selectedKeys.value = [to.path]
 })
 
-function handleMenuClick({ key }: { key: string }) {
-  const item = props.menuItems.find((m) => m.key === key)
-  if (item) router.push(item.path)
+// 菜单配置项
+const originItems = [
+  {
+    key: '/',
+    icon: () => h(HomeOutlined),
+    label: '主页',
+    title: '主页',
+  },
+  {
+    key: '/admin/userManage',
+    label: '用户管理',
+    title: '用户管理',
+  },
+]
+
+/**
+ * 将菜单项转换为路由项
+ * @param menu 菜单项
+ * @return 路由项
+ */
+const menuToRouteItem = (menu: any) => {
+  const menuKey = menu?.key as string
+  // 根据菜单的 key（路径）在路由表中查找对应的路由配置
+  const route = router.getRoutes().find((route) => route.path === menuKey)
+  return route || { path: menuKey, meta: {} }
 }
 
-/** 使用运行时路径，避免 Vite 把 /logo.png 当作模块解析；可将 logo.png 放到 public 目录 */
-const logoSrc = '/logo.png'
+/**
+ * 过滤菜单项（根据权限和配置）
+ * @param menus 原始菜单列表
+ * @return 过滤后的菜单列表
+ */
+const filterMenus = (menus = [] as MenuProps['items']) => {
+  return menus?.filter((menu) => {
+    // 将菜单项转换为路由项
+    const routeItem = menuToRouteItem(menu)
+    
+    // 如果路由配置中设置了 hideInMenu，则隐藏该菜单
+    if (routeItem.meta?.hideInMenu) {
+      return false
+    }
+    
+    // 根据权限过滤菜单，有权限则返回 true，保留该菜单
+    return checkAccess(loginUserStore.loginUser, routeItem.meta?.access as string)
+  })
+}
 
-function onLogoError(e: Event) {
-  const el = e.target as HTMLImageElement
-  if (el) el.src = '/favicon.ico'
+// 展示在菜单的路由数组
+const menuItems = computed<MenuProps['items']>(() => filterMenus(originItems))
+
+// 处理菜单点击
+const handleMenuClick: MenuProps['onClick'] = (e) => {
+  const key = e.key as string
+  selectedKeys.value = [key]
+  // 跳转到对应页面
+  if (key.startsWith('/')) {
+    router.push(key)
+  }
+}
+
+// 退出登录
+const doLogout = async () => {
+  const res = await userLogout()
+  if (res.data.code === 0) {
+    loginUserStore.setLoginUser({
+      userName: '未登录',
+    })
+    message.success('退出登录成功')
+    await router.push('/user/login')
+  } else {
+    message.error('退出登录失败，' + res.data.message)
+  }
 }
 </script>
 
-<template>
-  <div class="global-header">
-    <div class="header-left">
-      <router-link to="/" class="logo-wrap">
-        <img :src="logoSrc" alt="Logo" class="logo-img" @error="onLogoError" />
-        <span class="site-title">{{ title }}</span>
-      </router-link>
-      <a-menu
-        :selected-keys="selectedKeys"
-        mode="horizontal"
-        :items="menuItems.map((m) => ({ key: m.key, label: m.label }))"
-        class="header-menu"
-        @click="handleMenuClick"
-      />
-    </div>
-    <div class="header-right">
-      <a-button type="primary">登录</a-button>
-    </div>
-  </div>
-</template>
-
 <style scoped>
-.global-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 100%;
+.header {
+  background: #fff;
   padding: 0 24px;
-  color: #1b5e20;
 }
 
 .header-left {
   display: flex;
   align-items: center;
-  flex: 1;
-  min-width: 0;
+  gap: 12px;
 }
 
-.logo-wrap {
-  display: flex;
-  align-items: center;
-  margin-right: 24px;
-  text-decoration: none;
-  color: inherit;
-  flex-shrink: 0;
-}
-
-.logo-img {
-  width: 32px;
-  height: 32px;
-  object-fit: contain;
-  margin-right: 8px;
+.logo {
+  height: 48px;
+  width: 48px;
 }
 
 .site-title {
+  margin: 0;
   font-size: 18px;
-  font-weight: 600;
-  white-space: nowrap;
+  color: #1890ff;
 }
 
-.header-menu {
-  flex: 1;
-  min-width: 0;
-  line-height: 64px;
-  border-bottom: none;
-  background: transparent !important;
-  color: #1b5e20;
-}
-
-.header-menu :deep(.ant-menu-item) {
-  min-width: 64px;
-  color: inherit;
-}
-
-.header-menu :deep(.ant-menu-item:hover),
-.header-menu :deep(.ant-menu-item-selected) {
-  color: #2e7d32 !important;
-}
-
-.header-right {
-  flex-shrink: 0;
-}
-
-@media (max-width: 768px) {
-  .global-header {
-    padding: 0 16px;
-  }
-
-  .site-title {
-    font-size: 16px;
-  }
-
-  .header-menu {
-    display: none;
-  }
+.ant-menu-horizontal {
+  border-bottom: none !important;
 }
 </style>
