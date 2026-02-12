@@ -5,7 +5,8 @@
       <a-col flex="200px">
         <RouterLink to="/">
           <div class="header-left">
-            <h1 class="site-title">咸鱼应用生成</h1>
+            <img class="logo" src="@/assets/logo.png" alt="Logo" />
+            <h1 class="site-title">鱼皮应用生成</h1>
           </div>
         </RouterLink>
       </a-col>
@@ -53,7 +54,6 @@ import { type MenuProps, message } from 'ant-design-vue'
 import { useLoginUserStore } from '@/stores/loginUser.ts'
 import { userLogout } from '@/api/userController.ts'
 import { LogoutOutlined, HomeOutlined } from '@ant-design/icons-vue'
-import checkAccess from '@/access/checkAccess.ts'
 
 const loginUserStore = useLoginUserStore()
 const router = useRouter()
@@ -77,40 +77,29 @@ const originItems = [
     label: '用户管理',
     title: '用户管理',
   },
+  {
+    key: '/admin/appManage',
+    label: '应用管理',
+    title: '应用管理',
+  },
+  {
+    key: 'others',
+    label: h('a', { href: 'https://www.codefather.cn', target: '_blank' }, '编程导航'),
+    title: '编程导航',
+  },
 ]
 
-/**
- * 将菜单项转换为路由项
- * @param menu 菜单项
- * @return 路由项
- */
-const menuToRouteItem = (menu: any) => {
-  const menuKey = menu?.key as string
-  // 根据菜单的 key（路径）在路由表中查找对应的路由配置
-  const route = router.getRoutes().find((route) => route.path === menuKey)
-  return route || { path: menuKey, meta: {
-      access: '',
-      hideInMenu: true,
-    } }
-}
-
-/**
- * 过滤菜单项（根据权限和配置）
- * @param menus 原始菜单列表
- * @return 过滤后的菜单列表
- */
+// 过滤菜单项
 const filterMenus = (menus = [] as MenuProps['items']) => {
   return menus?.filter((menu) => {
-    // 将菜单项转换为路由项
-    const routeItem = menuToRouteItem(menu)
-
-    // 如果路由配置中设置了 hideInMenu，则隐藏该菜单
-    if (routeItem.meta?.hideInMenu) {
-      return false
+    const menuKey = menu?.key as string
+    if (menuKey?.startsWith('/admin')) {
+      const loginUser = loginUserStore.loginUser
+      if (!loginUser || loginUser.userRole !== 'admin') {
+        return false
+      }
     }
-
-    // 根据权限过滤菜单，有权限则返回 true，保留该菜单
-    return checkAccess(loginUserStore.loginUser, routeItem.meta?.access as string)
+    return true
   })
 }
 

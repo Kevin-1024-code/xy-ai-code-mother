@@ -1,4 +1,6 @@
 spring:
+  profiles:
+    active: local
   application:
     name: xy-ai-code-mother-backend
 
