@@ -1,0 +1,4 @@
+0215
+    github版本前端无法显示对话内容
+        -可能原因：apppages.vue里fetchAppInfo未找到方法定义
+    采用第5节的frontend(最终版）前端成功展示对话

@@ -1,0 +1,13 @@
+后端
+建表
+根据表生成相应的entity,service,controller
+完善model下的dto,vo请求与响应类
+完善service与controller扩展功能
+用swagger测试接口
+
+前端
+根据swagger接口文档生成请求
+vue组件中编写<script>控制请求逻辑
+<template>展示页面布局
+<style>调整样式
+

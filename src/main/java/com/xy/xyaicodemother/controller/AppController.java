@@ -59,17 +59,14 @@ public class AppController {
     @PostMapping("/add")
     public BaseResponse<Long> addApp(@RequestBody AppAddRequest appAddRequest, HttpServletRequest request) {
         ThrowUtils.throwIf(appAddRequest == null, ErrorCode.PARAMS_ERROR);
-        App app = new App();
-        BeanUtil.copyProperties(appAddRequest, app);
-        // 校验参数
-        appService.validApp(app, true);
+
         // 获取当前登录用户
         User loginUser = userService.getLoginUser(request);
-        app.setUserId(loginUser.getId());
+
         // 保存应用
-        boolean result = appService.save(app);
-        ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
-        return ResultUtils.success(app.getId());
+        Long appId = appService.createApp(appAddRequest, loginUser);
+
+        return ResultUtils.success(appId);
     }
 
     /**

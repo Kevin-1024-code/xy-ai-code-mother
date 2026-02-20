@@ -482,7 +482,7 @@ const generateCode = async (userMessage: string, aiMessageIndex: number) => {
 
   try {
     // 获取 axios 配置的 baseURL
-    const baseURL = request.defaults.baseURL || API_BASE_URL
+    const baseURL = API_BASE_URL
 
     // 构建URL参数
     const params = new URLSearchParams({

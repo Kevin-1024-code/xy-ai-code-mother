@@ -2,6 +2,7 @@ package com.xy.xyaicodemother.service;
 
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.core.service.IService;
+import com.xy.xyaicodemother.model.dto.app.AppAddRequest;
 import com.xy.xyaicodemother.model.dto.app.AppQueryRequest;
 import com.xy.xyaicodemother.model.entity.App;
 import com.xy.xyaicodemother.model.entity.User;
@@ -67,4 +68,13 @@ public interface AppService extends IService<App> {
      * @return 可访问的部署地址
      */
     String deployApp(Long appId, User loginUser);
+
+    /**
+     * 创建应用
+     *
+     * @param appAddRequest
+     * @param loginUser
+     * @return
+     */
+    Long createApp(AppAddRequest appAddRequest, User loginUser);
 }

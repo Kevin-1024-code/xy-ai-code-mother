@@ -10,24 +10,31 @@ import com.mybatisflex.spring.service.impl.ServiceImpl;
 import com.xy.xyaicodemother.ai.model.enums.CodeGenTypeEnum;
 import com.xy.xyaicodemother.constant.AppConstant;
 import com.xy.xyaicodemother.core.AiCodeGeneratorFacade;
+import com.xy.xyaicodemother.core.handler.StreamHandlerExecutor;
 import com.xy.xyaicodemother.exception.BusinessException;
 import com.xy.xyaicodemother.exception.ErrorCode;
 import com.xy.xyaicodemother.exception.ThrowUtils;
+import com.xy.xyaicodemother.model.dto.app.AppAddRequest;
 import com.xy.xyaicodemother.model.dto.app.AppQueryRequest;
 import com.xy.xyaicodemother.model.entity.App;
 import com.xy.xyaicodemother.mapper.AppMapper;
 import com.xy.xyaicodemother.model.entity.User;
+import com.xy.xyaicodemother.model.enums.ChatHistoryMessageTypeEnum;
 import com.xy.xyaicodemother.model.vo.AppVO;
 import com.xy.xyaicodemother.model.vo.UserVO;
 import com.xy.xyaicodemother.service.AppService;
+import com.xy.xyaicodemother.service.ChatHistoryService;
 import com.xy.xyaicodemother.service.UserService;
 import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
 import java.io.File;
+import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -41,6 +48,7 @@ import java.util.stream.Collectors;
  * @author <a>程序员咸鱼</a>
  */
 @Service
+@Slf4j
 public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppService {
 
     @Resource
@@ -48,6 +56,12 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
 
     @Resource
     private AiCodeGeneratorFacade aiCodeGeneratorFacade;
+
+    @Resource
+    private ChatHistoryService chatHistoryService;
+
+    @Resource
+    private StreamHandlerExecutor streamHandlerExecutor;
 
     @Override
     public AppVO getAppVO(App app) {
@@ -199,15 +213,19 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权限访问该应用");
         }
         // 4. 获取应用的代码生成类型
-        String codeGenType = app.getCodeGenType();
-        CodeGenTypeEnum codeGenTypeEnum = CodeGenTypeEnum.getEnumByValue(codeGenType);
+        String codeGenTypeStr = app.getCodeGenType();
+        CodeGenTypeEnum codeGenTypeEnum = CodeGenTypeEnum.getEnumByValue(codeGenTypeStr);
         if (codeGenTypeEnum == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "应用代码生成类型错误");
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "不支持的代码生成类型");
         }
+        // 5. 通过校验后，添加用户消息到对话历史
+        chatHistoryService.addChatMessage(appId, message, ChatHistoryMessageTypeEnum.USER.getValue(), loginUser.getId());
 
-        // 7. 调用 AI 生成代码（流式）
-        return aiCodeGeneratorFacade.generateAndSaveCodeStream(message, codeGenTypeEnum, appId);
+        // 6. 调用 AI 生成代码（流式）
+        Flux<String> codeStream = aiCodeGeneratorFacade.generateAndSaveCodeStream(message, codeGenTypeEnum, appId);
 
+        // 7. 收集 AI 响应内容并在完成后记录到对话历史
+        return streamHandlerExecutor.doExecute(codeStream, chatHistoryService, appId, loginUser, codeGenTypeEnum);
     }
 
     @Override
@@ -255,6 +273,50 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         // 10. 构建应用访问 URL
         return String.format("%s/%s/", AppConstant.CODE_DEPLOY_HOST, deployKey);        // 11. 异步生成截图并且更新应用封面
 
+    }
+
+    @Override
+    public Long createApp(AppAddRequest appAddRequest, User loginUser) {
+        // 参数校验
+        String initPrompt = appAddRequest.getInitPrompt();
+        ThrowUtils.throwIf(StrUtil.isBlank(initPrompt), ErrorCode.PARAMS_ERROR, "初始化 prompt 不能为空");
+        // 构造入库对象
+        App app = new App();
+        BeanUtil.copyProperties(appAddRequest, app);
+        app.setUserId(loginUser.getId());
+        // 应用名称暂时为 initPrompt 前 12 位
+        app.setAppName(initPrompt.substring(0, Math.min(initPrompt.length(), 12)));
+        app.setCodeGenType(CodeGenTypeEnum.VUE_PROJECT.getValue());
+        // 插入数据库
+        boolean result = this.save(app);
+        ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
+        log.info("应用创建成功，ID: {}, 类型: {}", app.getId(), CodeGenTypeEnum.VUE_PROJECT.getValue());
+        return app.getId();
+    }
+
+    /**
+     * 删除应用时，关联删除对话历史
+     *
+     * @param id
+     * @return
+     */
+    @Override
+    public boolean removeById(Serializable id) {
+        if (id == null) {
+            return false;
+        }
+        long appId = Long.parseLong(id.toString());
+        if (appId <= 0) {
+            return false;
+        }
+        // 先删除关联的对话历史
+        try {
+            chatHistoryService.deleteByAppId(appId);
+        } catch (Exception e) {
+            log.error("删除应用关联的对话历史失败：{}", e.getMessage());
+        }
+        // 删除应用
+        return super.removeById(id);
     }
 
 
