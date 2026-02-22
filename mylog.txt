@@ -2,3 +2,9 @@
     github版本前端无法显示对话内容
         -可能原因：apppages.vue里fetchAppInfo未找到方法定义
     采用第5节的frontend(最终版）前端成功展示对话
+0220
+    -重大bug，aigeneratorservice中没有给vue项目返回类型设置为TokenStream
+    -修复webdrivermanager驱动老旧问题，直接用selenium原生驱动解决了bug（教程原生bug）
+0221
+    修复了hutool打包压缩工具类无法直接压缩给http输出流的bug（教程原生bug）
+        由于你的目标直接是 response.getOutputStream()（一个流，而不是具体的文件），导致 Hutool 内部的 zipFile 变量是 null。在比对时，FileUtil.equals(file, null) 触发了非空断言，直接抛出 IllegalArgumentException！

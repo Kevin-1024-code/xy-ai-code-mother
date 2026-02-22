@@ -5,6 +5,7 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.xy.xyaicodemother.ai.model.enums.CodeGenTypeEnum;
 import com.xy.xyaicodemother.ai.tools.FileWriteTool;
+import com.xy.xyaicodemother.ai.tools.ToolManager;
 import com.xy.xyaicodemother.exception.BusinessException;
 import com.xy.xyaicodemother.exception.ErrorCode;
 import com.xy.xyaicodemother.service.ChatHistoryService;
@@ -40,6 +41,9 @@ public class AiCodeGeneratorServiceFactory {
 
     @Resource
     private StreamingChatModel reasoningStreamingChatModel;
+
+    @Resource
+    private ToolManager toolManager;
 
 //    /**
 //     * 根据 appId 获取服务
@@ -130,7 +134,7 @@ public class AiCodeGeneratorServiceFactory {
                 .builder()
                 .id(appId)
                 .chatMemoryStore(redisChatMemoryStore)
-                .maxMessages(20)
+                .maxMessages(40)
                 .build();
 
         // 从数据库加载历史对话到记忆中
@@ -142,7 +146,7 @@ public class AiCodeGeneratorServiceFactory {
             case VUE_PROJECT -> AiServices.builder(AiCodeGeneratorService.class)
                     .streamingChatModel(reasoningStreamingChatModel)
                     .chatMemoryProvider(memoryId -> chatMemory)
-                    .tools(new FileWriteTool())
+                    .tools(toolManager.getAllTools())
                     .hallucinatedToolNameStrategy(toolExecutionRequest -> ToolExecutionResultMessage.from(
                             toolExecutionRequest, "Error: there is no tool called " + toolExecutionRequest.name()
                     ))
