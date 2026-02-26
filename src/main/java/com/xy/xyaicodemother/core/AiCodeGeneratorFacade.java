@@ -10,6 +10,7 @@ import com.xy.xyaicodemother.ai.model.message.AiResponseMessage;
 import com.xy.xyaicodemother.ai.model.message.ToolExecutedMessage;
 import com.xy.xyaicodemother.ai.model.message.ToolRequestMessage;
 import com.xy.xyaicodemother.constant.AppConstant;
+import com.xy.xyaicodemother.core.builder.VueProjectBuilder;
 import com.xy.xyaicodemother.core.parser.CodeParserExecutor;
 import com.xy.xyaicodemother.core.saver.CodeFileSaverExecutor;
 import com.xy.xyaicodemother.exception.BusinessException;
@@ -32,6 +33,9 @@ public class AiCodeGeneratorFacade {
 
     @Resource
     private AiCodeGeneratorServiceFactory aiCodeGeneratorServiceFactory;
+
+    @Resource
+    private VueProjectBuilder  vueProjectBuilder;
 
 
 
@@ -211,6 +215,9 @@ public class AiCodeGeneratorFacade {
                     })
                     .onCompleteResponse((ChatResponse response) -> {
 
+                        // 执行 Vue 项目构建（同步执行，确保预览时项目已就绪）
+                        String projectPath = AppConstant.CODE_OUTPUT_ROOT_DIR + "/vue_project_" + appId;
+                        vueProjectBuilder.buildProject(projectPath);
                         sink.complete();
                     })
                     .onError((Throwable error) -> {
