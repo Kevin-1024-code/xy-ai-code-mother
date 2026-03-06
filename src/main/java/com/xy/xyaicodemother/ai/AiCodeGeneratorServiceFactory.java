@@ -3,6 +3,7 @@ package com.xy.xyaicodemother.ai;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.xy.xyaicodemother.ai.guardrail.PromptSafetyInputGuardrail;
 import com.xy.xyaicodemother.ai.model.enums.CodeGenTypeEnum;
 import com.xy.xyaicodemother.ai.tools.FileWriteTool;
 import com.xy.xyaicodemother.ai.tools.ToolManager;
@@ -151,6 +152,7 @@ public class AiCodeGeneratorServiceFactory {
                         .streamingChatModel(reasoningStreamingChatModel)
                         .chatMemoryProvider(memoryId -> chatMemory)
                         .tools(toolManager.getAllTools())
+                        .inputGuardrails(new PromptSafetyInputGuardrail()) // 添加输入护轨
                         // 处理工具调用幻觉问题
                         .hallucinatedToolNameStrategy(toolExecutionRequest ->
                                 ToolExecutionResultMessage.from(toolExecutionRequest,
@@ -167,6 +169,7 @@ public class AiCodeGeneratorServiceFactory {
                         .chatModel(chatModel)
                         .streamingChatModel(openAiStreamingChatModel)
                         .chatMemory(chatMemory)
+                        .inputGuardrails(new PromptSafetyInputGuardrail()) // 添加输入护轨
                         .build();
             }
             default ->
