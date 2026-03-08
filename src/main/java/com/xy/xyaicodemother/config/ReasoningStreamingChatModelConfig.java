@@ -1,6 +1,7 @@
 package com.xy.xyaicodemother.config;
 
 
+import com.xy.xyaicodemother.monitor.AiModelMonitorListener;
 import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import jakarta.annotation.Resource;
@@ -33,6 +34,9 @@ public class ReasoningStreamingChatModelConfig {
 
     private Boolean logResponses = false;
 
+    @Resource
+    private AiModelMonitorListener aiModelMonitorListener;
+
     /**
      * 推理流式模型（用于 Vue 项目生成，带工具调用）
      */
@@ -47,7 +51,7 @@ public class ReasoningStreamingChatModelConfig {
                 .temperature(temperature)
                 .logRequests(logRequests)
                 .logResponses(logResponses)
-
+                .listeners(List.of(aiModelMonitorListener))
                 .build();
     }
 }

@@ -1,6 +1,7 @@
 package com.xy.xyaicodemother.config;
 
 
+import com.xy.xyaicodemother.monitor.AiModelMonitorListener;
 import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import jakarta.annotation.Resource;
@@ -36,6 +37,9 @@ public class StreamingChatModelConfig {
 
     private boolean logResponses;
 
+    @Resource
+    private AiModelMonitorListener aiModelMonitorListener;
+
     /**
      * 流式模型
      */
@@ -50,7 +54,7 @@ public class StreamingChatModelConfig {
                 .temperature(temperature)
                 .logRequests(logRequests)
                 .logResponses(logResponses)
-
+                .listeners(List.of(aiModelMonitorListener))
                 .build();
     }
 }
